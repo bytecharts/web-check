@@ -335,12 +335,29 @@ const LoadSummary = ({ jobs, elapsedMs, onOpen }: LoadSummaryProps): ReactNode =
   const c = countByState(jobs);
   const issues = c.error + c['timed-out'] + c.skipped;
   const sec = (elapsedMs / 1000).toFixed(1);
-  const text = c.loading
-    ? `Loading ${total - c.loading} of ${total}` + (elapsedMs < 15000 ? ` (${sec}s)` : '')
-    : `Finished ${total} lookups in ${sec}s`;
+  if (c.loading) {
+    const text =
+      `Loading ${total - c.loading} of ${total}` + (elapsedMs < 15000 ? ` (${sec}s)` : '');
+    return <span className="summary">{text}</span>;
+  }
+  const failed = jobs.filter((j) => j.state === 'error' || j.state === 'timed-out');
+  const skipped = jobs.filter((j) => j.state === 'skipped');
+  const names = (list: LoadingJob[]) => list.map((j) => j.name).join(', ');
   return (
     <span className="summary">
-      {text}
+      {`Finished ${total} lookups in ${sec}s · ${c.success} successful`}
+      {failed.length > 0 && (
+        <>
+          {' · '}
+          {`${failed.length} failed (${names(failed)})`}
+        </>
+      )}
+      {skipped.length > 0 && (
+        <>
+          {' · '}
+          {`${skipped.length} skipped (${names(skipped)})`}
+        </>
+      )}
       {issues > 0 && (
         <>
           {' · '}
