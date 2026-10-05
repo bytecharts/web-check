@@ -16,6 +16,7 @@ import ports from './ports';
 import traceRoute from './trace-route';
 import carbon from './carbon';
 import ctAge from './ct-age';
+import httpProto from './http-proto';
 import metaTags from './meta-tags';
 import serverInfo from './server-info';
 import vulnerabilities from './vulnerabilities';
@@ -74,6 +75,7 @@ const all = {
   'trace-route': traceRoute,
   carbon,
   'ct-age': ctAge,
+  'http-proto': httpProto,
   'meta-tags': metaTags,
   'server-info': serverInfo,
   vulnerabilities,

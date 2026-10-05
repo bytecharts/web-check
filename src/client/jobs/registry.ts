@@ -21,6 +21,7 @@ import OpenPortsCard from 'client/components/Results/OpenPorts';
 import TraceRouteCard from 'client/components/Results/TraceRoute';
 import CarbonFootprintCard from 'client/components/Results/CarbonFootprint';
 import CtAgeCard from 'client/components/Results/CtAge';
+import HttpProtoCard from 'client/components/Results/HttpProto';
 import MetaTagsCard from 'client/components/Results/MetaTags';
 import DnsSecCard from 'client/components/Results/DnsSec';
 import HstsCard from 'client/components/Results/Hsts';
@@ -387,6 +388,12 @@ export const jobs: JobSpec[] = [
     expectedAddressTypes: [...URL_ONLY],
     cards: [card('meta-tags', MetaTagsCard)],
     fetcher: fetchAndProcess('meta-tags?url=${url}'),
+  },
+  {
+    id: 'http-proto',
+    expectedAddressTypes: [...URL_ONLY],
+    cards: [card('http-proto', HttpProtoCard)],
+    fetcher: fetchAndProcess('http-proto?url=${url}'),
   },
 ];
 
