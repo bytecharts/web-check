@@ -23,7 +23,7 @@ import { determineAddressType, type AddressType } from 'client/utils/address-typ
 import { hasData } from 'client/utils/result-processor';
 import keys from 'client/utils/get-keys';
 import useJobs from 'client/hooks/useJobs';
-import { isCategory } from '@/data/categories';
+import { categories, categoryIds, isCategory, type CategoryId } from '@/data/categories';
 import { checks, isCheck } from '@/data/checks';
 import { jobsFor, cardsFor } from 'client/jobs/registry';
 import { runAnalysis } from 'client/analysis/registry';
@@ -63,12 +63,49 @@ const makeActionButtons = (title: string, refresh: () => void, showInfo: () => v
   />
 );
 
+const CategorySection = styled.section`
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1rem;
+`;
+
+const CategoryHeader = styled.button`
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.5rem 0.25rem;
+  background: none;
+  border: none;
+  border-bottom: 1px solid ${colors.neutral};
+  color: ${colors.textColor};
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  h2 {
+    margin: 0;
+    font-size: 1.25rem;
+  }
+`;
+
+const CategoryCount = styled.span`
+  font-size: 0.85rem;
+  color: ${colors.textColorSecondary};
+`;
+
+const CategoryChevron = styled.span`
+  margin-left: auto;
+  color: ${colors.textColorSecondary};
+`;
+
 const Results = (props: { address?: string }): JSX.Element => {
   const { urlToScan, tool = '' } = useParams();
   const address = props.address || urlToScan || '';
   const addressType: AddressType = useMemo(() => determineAddressType(address), [address]);
   const [modalOpen, setModalOpen] = useState(false);
   const [modalContent, setModalContent] = useState<ReactNode>(<></>);
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
   // Optional category or check in the path narrows the scan, unknown values fall back to everything
   const category = isCategory(tool) ? tool : undefined;
@@ -130,6 +167,27 @@ const Results = (props: { address?: string }): JSX.Element => {
 
   const cardsToShow = renderable.filter(({ data, entry }) => hasData(data) && !entry?.error);
 
+  // Full scan shows every card, grouped under its primary category in category order.
+  // A narrowed scan (category or single check in the path) keeps the flat grid.
+  const isFullView = !category && !check;
+  const groupedCards = (() => {
+    if (!isFullView) return null;
+    const groups = new Map<CategoryId, typeof cardsToShow>();
+    for (const item of cardsToShow) {
+      const primary = item.card.categories[0];
+      if (!primary) continue;
+      const list = groups.get(primary) ?? [];
+      list.push(item);
+      groups.set(primary, list);
+    }
+    return categoryIds
+      .filter((id) => groups.has(id))
+      .map((id) => ({ id, items: groups.get(id)! }));
+  })();
+
+  const toggleCategory = (id: CategoryId) =>
+    setCollapsed((prev) => ({ ...prev, [id]: !prev[id] }));
+
   const findings = useMemo(() => runAnalysis(jobsState), [jobsState]);
 
   // Show the loader until the first few checks have settled
@@ -166,14 +224,42 @@ const Results = (props: { address?: string }): JSX.Element => {
   }
 
   const jumpToCard = (id: string) => {
-    const el = document.getElementById(`card-${id}`);
-    if (!el) return;
-    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    el.classList.remove('flash');
-    void el.offsetWidth;
-    el.classList.add('flash');
-    window.setTimeout(() => el.classList.remove('flash'), 1300);
+    // Advisory findings may point into a collapsed section, open it first
+    const target = activeCards.find(({ card }) => card.id === id);
+    const primary = target?.card.categories[0];
+    const scrollTo = () => {
+      const el = document.getElementById(`card-${id}`);
+      if (!el) return;
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      el.classList.remove('flash');
+      void el.offsetWidth;
+      el.classList.add('flash');
+      window.setTimeout(() => el.classList.remove('flash'), 1300);
+    };
+    if (primary && collapsed[primary]) {
+      setCollapsed((prev) => ({ ...prev, [primary]: false }));
+      window.setTimeout(scrollTo, 60);
+      return;
+    }
+    scrollTo();
   };
+
+  const renderCard = ({ card, data }: (typeof cardsToShow)[number]) => (
+    <div id={`card-${card.id}`} key={`eb-${card.id}`}>
+      <ErrorBoundary title={card.title}>
+        <card.Component
+          key={card.id}
+          data={data}
+          title={card.title}
+          actionButtons={makeActionButtons(
+            card.title,
+            () => retry(card.id),
+            () => showInfo(card.id),
+          )}
+        />
+      </ErrorBoundary>
+    </div>
+  );
 
   return (
     <ResultsOuter>
@@ -186,24 +272,33 @@ const Results = (props: { address?: string }): JSX.Element => {
         <>
           <AdvisoryPanel findings={findings} onJumpTo={jumpToCard} />
           <ResultsContent>
-            <ResultsMasonryGrid minColWidth={336}>
-              {cardsToShow.map(({ card, data }) => (
-                <div id={`card-${card.id}`} key={`eb-${card.id}`}>
-                  <ErrorBoundary title={card.title}>
-                    <card.Component
-                      key={card.id}
-                      data={data}
-                      title={card.title}
-                      actionButtons={makeActionButtons(
-                        card.title,
-                        () => retry(card.id),
-                        () => showInfo(card.id),
-                      )}
-                    />
-                  </ErrorBoundary>
-                </div>
-              ))}
-            </ResultsMasonryGrid>
+            {groupedCards ? (
+              groupedCards.map(({ id, items }) => (
+                <CategorySection key={id} aria-label={`${categories[id].label} results`}>
+                  <CategoryHeader
+                    onClick={() => toggleCategory(id)}
+                    aria-expanded={!collapsed[id]}
+                  >
+                    <h2>{categories[id].label}</h2>
+                    <CategoryCount>
+                      {items.length} check{items.length === 1 ? '' : 's'}
+                    </CategoryCount>
+                    <CategoryChevron aria-hidden="true">
+                      {collapsed[id] ? '▸' : '▾'}
+                    </CategoryChevron>
+                  </CategoryHeader>
+                  {!collapsed[id] && (
+                    <ResultsMasonryGrid minColWidth={336}>
+                      {items.map(renderCard)}
+                    </ResultsMasonryGrid>
+                  )}
+                </CategorySection>
+              ))
+            ) : (
+              <ResultsMasonryGrid minColWidth={336}>
+                {cardsToShow.map(renderCard)}
+              </ResultsMasonryGrid>
+            )}
           </ResultsContent>
           {!loading && (
             <ViewRaw
