@@ -20,6 +20,7 @@ import ServerStatusCard from 'client/components/Results/ServerStatus';
 import OpenPortsCard from 'client/components/Results/OpenPorts';
 import TraceRouteCard from 'client/components/Results/TraceRoute';
 import CarbonFootprintCard from 'client/components/Results/CarbonFootprint';
+import CtAgeCard from 'client/components/Results/CtAge';
 import DnsSecCard from 'client/components/Results/DnsSec';
 import HstsCard from 'client/components/Results/Hsts';
 import SitemapCard from 'client/components/Results/Sitemap';
@@ -373,6 +374,12 @@ export const jobs: JobSpec[] = [
     expectedAddressTypes: [...URL_ONLY],
     cards: [card('carbon', CarbonFootprintCard)],
     fetcher: fetchAndProcess('carbon?url=${url}'),
+  },
+  {
+    id: 'ct-age',
+    expectedAddressTypes: [...URL_ONLY],
+    cards: [card('ct-age', CtAgeCard)],
+    fetcher: fetchAndProcess('ct-age?url=${url}'),
   },
 ];
 

@@ -15,6 +15,7 @@ import status from './status';
 import ports from './ports';
 import traceRoute from './trace-route';
 import carbon from './carbon';
+import ctAge from './ct-age';
 import serverInfo from './server-info';
 import vulnerabilities from './vulnerabilities';
 import whoisLookup from './whois-lookup';
@@ -71,6 +72,7 @@ const all = {
   ports,
   'trace-route': traceRoute,
   carbon,
+  'ct-age': ctAge,
   'server-info': serverInfo,
   vulnerabilities,
   'whois-lookup': whoisLookup,
